@@ -1,0 +1,265 @@
+---
+title: "Qualidade do Vinho"
+subtitle: "INFNET MIT Big Data - Bloco A - Trabalho de R"
+hittheme: tomorrow
+author: "Fernando Peres"
+date: "6/9/2017"
+output:
+  html_document: default
+---
+
+![](wine.jpg)
+
+# Introdução
+
+##Sobre o estudo - *WINE QUALITY*
+Há dois datasets neste estudo, um sobre vinho tinto e outro sobre vinho branco.
+
+## Cojunto de Dados:
+
+1. Vinho Tinto (*winequality-red.csv*) com w = 1599 observações.
+2. Vinho Branco (*winequality-white.csv*) com w = 4898 observações.
+
+**TOTAL DE OBSERVAÇÕES W = 6497 observações.**
+
+Os dois conjuntos de dados estão relacionados a variantes de vinhos tinto e vinhos brancos portugueses. Devido a problemas de privacidade e outras questões, apenas as variáveis fisicoquímicas (entradas) e sensoriais (de saída) estão disponíveis. Neste sentido, não há dados sobre os tipos de uvas, marca de vinho, preço de venda de vinho, etc.)
+
+## Atributos
+
+Ambos os data sets possuem os mesmos **12 atributos**:
+
+01. fixed.acidity        = Acidez fixa
+02. volatile.acidity     = Acidez volátil
+03. citric.acid          = Ácido cítrico
+04. residual.sugar       = Açucar residual
+05. chlorides            = Cloretos
+06. free.sulfur.dioxide  = Livre de dióxido de enxofre
+07. total.sulfur.dioxide = Total de dióxido de enxofre
+08. density              = Densidade
+09. pH                   = pH             
+10. sulphates            = Sulfatos
+11. alcohol              = Teor alcólico
+12. quality              = Qualidade
+
+Esses conjuntos de dados podem ser vistos para atividades de classificação ou regressão. As clases são encomendadas e não equilibradas (por exemplo, existem mais vinhos normais do que excelentes ou pobres). Os algoritmos de detecção de Outlier podem ser usados para detectar alguns vinhos excelentes ou pobres. Além disso, não temos certeza se todas as variáveis de entrada são relevantes. Portanto, pode ser interessante testar métodos de seleção de recursos.
+
+## Fonte dos dados 
+Os dados foram baixados do site: [UCI - Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/wine+quality) 
+
+## Para mais informações  
+Cortez et al., 2009 [Modeling wine preferences by data mining from physicochemical properties](http://www.sciencedirect.com/science/article/pii/S0167923609001377?via%3Dihub)
+
+# 6. Análise multivariada (Gosto / $taste)
+
+## Setup: Definição de "caminhos"
+
+Difinição do caminho padrão, para utilizar este código no seu computador, mude a string *wine.path* para a pasta onde você descarregou os arquivos do projeto. O local onde estarão os dados e demais códigos do *R* se ajustarão automaticamente.
+```{r, message=FALSE, warning=FALSE}
+# ******************************************************************************
+# #### SETUP ####
+# ******************************************************************************
+## work directory path ##
+wine.path = "/Users/fernandoperes/dev/r/r-wine/" # to be reused as needed
+setwd(wine.path) 
+## Sources
+source(file =  paste(wine.path, "wines-0-utils.R", sep = ""))
+## Libraries
+## Libraries
+library(party)
+library(rpart)
+library(rpart.plot) 
+library(ipred) 
+library(randomForest) 
+library(C50) 
+
+getwd()
+
+# ******************************************************************************
+# #### Load prepared data files ####
+# ******************************************************************************
+load(file="all-wine.Rda") # load(file="red-wine.Rda") # load(file="white-wine.Rda")
+```
+
+## Introdução
+A seguir serão realizadas análises utilizando diversos algoritmos e para comparar os seus resultados.
+
+### Formula que será usada pelos algoritmos:
+#### Variável dependente: gosto / *$taste*
+#### Variáveis independentes: todas exceto: $color, $quality e auxiliares de cores.
+
+```{r}
+# ******************************************************************************
+# #### Configure and run ctree algorithm ####
+# ******************************************************************************
+model.config <- taste ~ fixed.acidity + 
+  volatile.acidity + 
+  citric.acid + 
+  residual.sugar + 
+  chlorides + 
+  free.sulfur.dioxide +
+  total.sulfur.dioxide + 
+  density +             
+  pH + 
+  sulphates +
+  alcohol
+
+model.config
+```
+
+## Definição dos conjuntos de treino e de teste 
+<ul>
+  <li> 80% para o conjunto de *Treino*  </li>
+  <li> 20% para o conjunto de *Teste*  </li> 
+</ul>
+
+```{r}
+ind <- sample(2, nrow(all.wine), replace = TRUE, prob = c(0.8, 0.2))
+trainData <- all.wine[ind == 1,]
+testData <- all.wine[ind == 2,]
+
+nrow(trainData)
+nrow(testData)
+```
+
+
+## 1. CTREE
+Roda o algoritmo conforme a configuração
+Apresenta a matrix de confusão
+
+```{r}
+#*******************************************************************************
+# 1. train: CTREE
+#*******************************************************************************
+wine.ctree <- ctree(model.config, data = trainData)
+
+# confusion matrix (test set)
+wine.ctree.Predict <- predict(wine.ctree, newdata = testData)
+(wine.ctree.test.table <- table(wine.ctree.Predict, testData$taste))
+```
+
+### Resultado Acerto X Erros
+
+```{r}
+# plot confusion matrix results based on test set
+par.customized <- par(mfrow = c(1, 2))
+plot.model.summary.by.taste(t = wine.ctree.test.table, title = "CTREE - Pelo conjunto de TESTE")
+```
+
+## 2. CART
+Roda o algoritmo conforme a configuração
+Apresenta a matrix de confusão
+
+```{r}
+#*******************************************************************************
+# 2. train: CART - CLASSIFICATION AND REGRESSION TREES 
+# Faz a divisão da árvore com base nos valores que minimizam uma funçãoo de custo,
+# como soma dos mínimos quadrados.
+#*******************************************************************************
+
+# run algorithm
+wine.CART <- rpart(model.config, data = trainData)
+
+# confusion matrix (test set)
+CART.predictions <- predict(wine.CART, testData, type = "class")
+(wine.CART.table  <- table(CART.predictions, testData$taste))
+```
+
+### Resultado Acerto X Erros
+
+```{r}
+# plot confusion matrix results based on test set
+par.customized <- par(mfrow = c(1, 2))
+plot.model.summary.by.taste(t = wine.CART.table, title = "CART - Por toda a base")
+```
+
+3. Bagging CART
+Roda o algoritmo conforme a configuração
+Apresenta a matrix de confusão
+
+```{r}
+#*******************************************************************************
+# 3. train: BAGGING CART (Training set x Test Set)
+# Faz a divisão da árvore com base nos valores que minimizam uma funçãoo de custo,
+# como soma dos mínimos quadrados.
+#*******************************************************************************
+wine.bagginCart <- bagging(model.config, data = trainData)
+
+# confusion matrix (test set)
+bagginCart.predictions <- predict(wine.bagginCart , testData, type = "class")
+(wine.bagginCart.table  <- table(bagginCart.predictions, testData$taste))
+```
+
+### Resultado Acerto X Erros
+```{r}
+# plot confusion matrix results based on test set
+par.customized <- par(mfrow = c(1, 2))
+plot.model.summary.by.taste(t = wine.bagginCart.table, title = "Bagging CART - pela base de teste")
+```
+
+## 4. C5.0
+Roda o algoritmo conforme a configuração
+Apresenta a matrix de confusão
+
+```{r}
+#*******************************************************************************
+# 4. train: C5.0 (Training set x Test Set)
+# Faz a divisão da árvore com base nos valores que minimizam uma funçãoo de custo,
+# como soma dos mínimos quadrados.
+#*******************************************************************************
+wine.C5.0 <- C5.0(model.config, data = trainData)
+
+# confusion matrix (test set)
+C5.0.predictions <- predict(wine.C5.0 , testData, type = "class")
+wine.C5.0.table  <- table(C5.0.predictions, testData$taste)
+
+# confusion matrix
+wine.C5.0.table
+```
+
+### Resultado Acerto X Erros
+
+```{r}
+# plot confusion matrix results based on test set
+par.customized <- par(mfrow = c(1, 2))
+plot.model.summary.by.taste(t = wine.C5.0.table, title = "C5.0- pela base de teste")
+```
+
+## 5. Random forest
+Roda o algoritmo conforme a configuração
+Apresenta a matrix de confusão
+
+```{r}
+#*******************************************************************************
+# 5. train: Random forrest
+# Faz a divisão da árvore com base nos valores que minimizam uma funçãoo de custo,
+# como soma dos mínimos quadrados.
+#*******************************************************************************
+wine.RF <- randomForest(model.config, data = trainData)
+
+# confusion matrix (test set)
+RF.predictions <- predict(wine.RF , testData, type = "class")
+wine.RF.table  <- table(RF.predictions, testData$taste)
+
+# confusion matrix
+wine.RF.table
+```
+
+### Resultado Acerto X Erros
+
+```{r}
+# plot confusion matrix results based on test set
+par.customized <- par(mfrow = c(1, 2))
+plot.model.summary.by.taste(t = wine.RF.table, title = "Random forest - pela base de TESTE")
+```
+
+## Conclusão:
+O melhor modelo para classificar esta base foi o **Random Forest**, seguido de perto pelo **Bagging CART**. 
+
+**Esforços futuros**
+<ul>
+  <li>Remover outliers e testar novamente</li>
+  <li>Testar com outros algoritmos</li>
+  <li>Verificar formas de aperfeiçoar os algoritmos que trouxeram melhores resultados</li>
+  <li>fazer calculos de ganho de informação e ranquear os atributos</li>
+  <li>Etc.</li>
+</ul>

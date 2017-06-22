@@ -1,0 +1,590 @@
+---
+title: "Qualidade do Vinho"
+subtitle: "INFNET MIT Big Data - Bloco A - Trabalho de R"
+hittheme: tomorrow
+author: "Fernando Peres"
+date: "6/9/2017"
+output:
+  html_document: default
+---
+
+![](wine.jpg)
+
+# Introdução
+
+##Sobre o estudo - *WINE QUALITY*
+Há dois datasets neste estudo, um sobre vinho tinto e outro sobre vinho branco.
+
+## Cojunto de Dados:
+
+1. Vinho Tinto (*winequality-red.csv*) com w = 1599 observações.
+2. Vinho Branco (*winequality-white.csv*) com w = 4898 observações.
+
+**TOTAL DE OBSERVAÇÕES W = 6497 observações.**
+
+Os dois conjuntos de dados estão relacionados a variantes de vinhos tinto e vinhos brancos portugueses. Devido a problemas de privacidade e outras questões, apenas as variáveis fisicoquímicas (entradas) e sensoriais (de saída) estão disponíveis. Neste sentido, não há dados sobre os tipos de uvas, marca de vinho, preço de venda de vinho, etc.)
+
+## Atributos
+
+Ambos os data sets possuem os mesmos **12 atributos**:
+
+01. fixed.acidity        = Acidez fixa
+02. volatile.acidity     = Acidez volátil
+03. citric.acid          = Ácido cítrico
+04. residual.sugar       = Açucar residual
+05. chlorides            = Cloretos
+06. free.sulfur.dioxide  = Livre de dióxido de enxofre
+07. total.sulfur.dioxide = Total de dióxido de enxofre
+08. density              = Densidade
+09. pH                   = pH             
+10. sulphates            = Sulfatos
+11. alcohol              = Teor alcólico
+12. quality              = Qualidade
+
+Esses conjuntos de dados podem ser vistos para atividades de classificação ou regressão. As clases são encomendadas e não equilibradas (por exemplo, existem mais vinhos normais do que excelentes ou pobres). Os algoritmos de detecção de Outlier podem ser usados para detectar alguns vinhos excelentes ou pobres. Além disso, não temos certeza se todas as variáveis de entrada são relevantes. Portanto, pode ser interessante testar métodos de seleção de recursos.
+
+## Fonte dos dados 
+Os dados foram baixados do site: [UCI - Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/wine+quality) 
+
+## Para mais informações  
+Cortez et al., 2009 [Modeling wine preferences by data mining from physicochemical properties](http://www.sciencedirect.com/science/article/pii/S0167923609001377?via%3Dihub)
+
+# 1. Tratamento dos dados
+![](data-prep.png)
+
+Realizar o tratamento dos dados recebidos e gerar 3 bases tratadas:
+
+1. Todos os vinhos = **all.wine**
+2. Vinhos tintos = **red.wine**
+3. Vinhos brancos = **white.wine**
+
+## Etapa1: Definição de "caminhos"
+
+Difinição do caminho padrão, para utilizar este código no seu computador, mude a string *wine.path* para a pasta onde você descarregou os arquivos do projeto. O local onde estarão os dados e demais códigos do *R* se ajustarão automaticamente.
+
+
+
+```{r}
+# ******************************************************************************
+# #### SETUP ####
+# ******************************************************************************
+## work directory path ##
+wine.path = "/Users/fernandoperes/dev/r/r-wine/" # to be reused as needed
+setwd(wine.path) 
+## Sources
+source(file =  paste(wine.path, "wines-0-utils.R", sep = ""))
+## Libraries
+library(dplyr)
+library(ggplot2)
+
+getwd()
+
+```
+
+## Etapa 2: abrir os *data sets* originais e checar as colunas
+
+1. Vinho Tinto (*winequality-red.csv*) com w = 1599 observações.
+2. Vinho Branco (*winequality-white.csv*) com w = 4898 observações.
+
+```{r}
+# ******************************************************************************
+# #### LOAD DATA ####
+# ******************************************************************************
+white.wine = read.csv("winequality-white.csv", sep = ";", header = TRUE)
+red.wine   = read.csv("winequality-red.csv", sep = ";", header = TRUE)
+```
+
+Listar as colunas para ver que são as mesmas
+```{r}
+names(white.wine)
+names(red.wine)
+```
+
+## Etapa 3: Adicionar a coluna cor do vinho **$color** aos *data frames*
+Esta coluna está sendo criada para guardar a cor do vinho em cada um dos *data frames*. Desta forma, quando os *data frames* forem agrupados em apenas um *data frame* se podera saber se o vinho é branco ou tinto em cada uma das observações.  
+```{r}
+red.wine$color       = wine.red.label 
+white.wine$color     = wine.white.label
+```
+
+Mostrar os campos foram adcionados [13] color em ambos *data frames*
+```{r}
+names(white.wine)
+names(red.wine)
+```
+
+## Etapa 4: Coluna para cor de impresão de gráficos
+```{r}
+red.wine$col.color   = wine.color.red # color code 
+white.wine$col.color = wine.color.white   #color code 
+```
+As cores que foram armazenadas. Observação: as constantes  **wine.color.white** e  **wine.color.white** foram definidas no arquivo *wines-utils.R*.
+```{r}
+wine.color.white
+wine.color.red
+```
+
+
+## Etapa 5: Avaliar a distribuição de qualidade antes de criar as categorias qualidade
+
+### Vinho Tinto
+```{r}
+
+par.customized <- par(mfrow=c(1,2))#, family = "Lucida Console") 
+
+# barplot(main = "Quartis", quantile(all.wine$quality), ylim = c(0,10), col = wine.color.red)
+
+boxplot(x = red.wine$quality, xlab = "Qualidade", 
+        col = wine.color.red,
+        main = "[Tinto] Qualidade do Vinho", # col.main = wine.color.red,
+        cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1, 
+        horizontal = T, 
+        frame = F)
+
+h <- hist(x = red.wine$quality, xlab = "Qualidade", 
+          main = "", col.main = wine.color.red, cex.main = 1, adj = 0,
+          ylab = "Frequência", ylim = c(0, 900),
+          col  = wine.color.red,
+          include.lowest = TRUE,
+          cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1,
+          labels = TRUE) #prob = TRUE)
+
+# curva normal
+xfit <- seq(min(red.wine$quality), max(red.wine$quality), length = 40) 
+yfit <- dnorm(xfit, mean = mean(red.wine$quality), sd = sd(red.wine$quality))
+yfit <- yfit * diff(h$mids[1:2]) * length(red.wine$quality) 
+lines(xfit, yfit, col = "blue", lwd = 2)
+
+```
+
+### Vinho branco
+
+```{r}
+par.customized <- par(mfrow=c(1,2))
+
+boxplot(x = white.wine$quality, xlab = "Qualidade", 
+        col = wine.color.white,
+        main = "[Branco] Qualidade do Vinho",
+        cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1,
+        horizontal = T, 
+        frame = F)
+
+h <- hist(main = "",
+          white.wine$quality, 
+          xlab = "Qualidade", 
+          ylab = "Frequência", ylim = c(0, 2500),
+          cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1,
+          col  = wine.color.white,
+          include.lowest = TRUE,
+          labels = TRUE) #prob = TRUE)
+
+# curva normal
+xfit <- seq(min(white.wine$quality), max(white.wine$quality), length = 40) 
+yfit <- dnorm(xfit, mean = mean(white.wine$quality), sd = sd(white.wine$quality))
+yfit <- yfit * diff(h$mids[1:2]) * length(white.wine$quality) 
+lines(xfit, yfit, col = "blue", lwd = 2)
+```
+
+### Definição das Quebras
+
+```{r echo=FALSE, warning=FALSE}
+par.customized <- par(mfrow=c(2,1))
+
+boxplot(x = red.wine$quality, xlab = "Qualidade", 
+        col = wine.color.red,
+        main = "[Tinto] Qualidade do Vinho",
+        cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1, 
+        horizontal = T, 
+        frame = F,
+        ylim = c(3,10))
+
+boxplot(x = white.wine$quality, xlab = "Qualidade", 
+        col = wine.color.white,
+        main = "[Branco] Qualidade do Vinho",
+        cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1,
+        horizontal = T, 
+        frame = F,
+        ylim = c(3,10))
+```
+
+
+
+Baseado nas análises anteriores de distribuição do atributo **qualidade ($quality)** os pontos de quebra serão:
+
+1. Menor que 6 = Ruim   
+2. Igual à 6   = Regular
+3. Maior que 6 = Bom
+
+**Serão usados os mesmos pontos de quebra para vinhos tintos e vinhos brancos.**
+
+## Etapa 6: Criar o atributo gosto 
+#### Criação do atributo **gosto / $taste** baseado na definição dos pontos de quebras da **qualidade / $quality**
+
+### Vinho tinto - **gosto / $taste **
+Criação do atributo **gosto / $taste ** e atribuição dos valores categóricos de acordo com os pontos de quebra definidos anteriormente. 
+```{r}
+red.wine$taste   = ifelse(red.wine$quality < 6, "ruim", "bom")
+red.wine$taste[red.wine$quality == 6]     =  "regular"
+red.wine$taste   <- as.factor(red.wine$taste)
+
+```
+#### Vinho tinto  - Como ficou o atributo **gosto / $taste**
+Após a criação e a transformação do atributo  **gosto / $taste** de acordo com os pontos de quebra da **qualidade / $quality**
+```{r}
+table(red.wine$taste)
+```
+#### Vinho tinto - Gráfico de Pizza para **gosto / $taste **
+```{r}
+red.wine.tastes.summary = table(red.wine$taste)
+red.wine.tastes.percent = 100 * red.wine.tastes.summary / sum(red.wine.tastes.summary)
+red.wine.tastes.percent = round(red.wine.tastes.percent, digits = 2)
+
+labs   = c(paste("Bom - ", red.wine.tastes.percent[1], "%", sep = ""), 
+               paste("Regular - ", red.wine.tastes.percent[2], "%", sep = ""), 
+               paste("Ruim - ", red.wine.tastes.percent[3], "%", sep = ""))
+
+pie(x = red.wine.tastes.percent, 
+    labels = labs,
+    cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1, 
+    main ="[Tinto] Gosto (Qualidade 0-10 categorizada)",
+    col = c(wine.good.color, wine.regular.color, wine.bad.color)) #c("green", " yellow", "dark red"))
+```
+
+### Vinho branco - **gosto / $taste **
+```{r}
+white.wine$taste = ifelse(white.wine$quality < 6, "ruim", "bom")
+white.wine$taste[white.wine$quality == 6] =  "regular"
+white.wine$taste <- as.factor(white.wine$taste)
+```
+#### Vinho branco  - Como ficou o atributo **gosto / $taste**
+Após a criação e a transformação do atributo  **gosto / $taste** de acordo com os pontos de quebra da **qualidade / $quality**
+```{r}
+table(white.wine$taste)
+```
+
+#### Vinho branco - Gráfico de Pizza para **gosto / $taste **
+```{r}
+white.wine.tastes.summary = table(white.wine$taste)
+white.wine.tastes.percent = 100 * white.wine.tastes.summary / sum(white.wine.tastes.summary)
+white.wine.tastes.percent = round(white.wine.tastes.percent, digits = 2)
+
+labs   = c(paste("Bom - ", white.wine.tastes.percent[1], "%", sep = ""), 
+               paste("Regular - ", white.wine.tastes.percent[2], "%", sep = ""), 
+               paste("Ruim - ", white.wine.tastes.percent[3], "%", sep = ""))
+
+pie(x = white.wine.tastes.percent, 
+    labels = labs, 
+    cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1,
+    main ="[Branco] Gosto (Qualidade 0-10 categorizada)",
+    col = c(wine.good.color, wine.regular.color, wine.bad.color)) #c("green", " yellow", "dark red"))
+```
+
+## Etapa 7: Cores para o gosto (conceito) do vinho
+
+Para facilitar a impresão de alguns gráficos, cada observação vai receber sua respectiva cor de acordo com o gosto (conceito) do vinho. Os valores serão os seguintes:
+
+- good = green
+- regular = yellow
+- bad = dark red 
+
+### Vinho tinto
+```{r}
+red.wine$taste.color <- ifelse(red.wine$taste == "bom", wine.good.color, wine.bad.color)
+red.wine$taste.color[red.wine$taste == "regular"] <- wine.regular.color
+red.wine$taste.color <- as.factor(red.wine$taste.color)
+
+```
+
+### Vinho branco
+```{r}
+white.wine$taste.color <- ifelse(white.wine$taste == "bom", wine.good.color, wine.bad.color)
+white.wine$taste.color[white.wine$taste == "regular"] <- wine.regular.color
+white.wine$taste.color <- as.factor(white.wine$taste.color)
+
+```  
+
+## Etapa 8: Juntar os *data frames* de vinho tinto e branco
+
+```{r}
+all.wine <- rbind(white.wine, red.wine)
+```
+
+## Etapa 9: Salvar os *data frames* transformados
+Estes arquivos transformados serão utilizados para manipulação nas fases seguinte.
+```{r}
+save(red.wine, file="red-wine.Rda")
+save(white.wine, file="white-wine.Rda")
+save(all.wine, file="all-wine.Rda")
+```
+
+### Vinhos tintos
+```{r}
+names(red.wine)   # List of fields of Red-wines
+```
+
+
+### Vinhos brancos
+```{r}
+names(white.wine) # List of fields of White-wines
+```
+
+### Todos os vinhos
+```{r}
+names(all.wine)   # List of fields of All-wines
+```
+
+## Etapa 10: Todos os vinhos - Como ficou o atributo **gosto / $taste**
+Após a criação e a transformação do atributo  **gosto / $taste** de acordo com os pontos de quebra da **qualidade / $quality**
+```{r}
+table(all.wine$taste)
+```
+
+#### Todos os vinhos - Gráfico de Pizza para **gosto / $taste**
+```{r}
+all.wine.tastes.summary = table(all.wine$taste)
+all.wine.tastes.percent = 100 * all.wine.tastes.summary / sum(all.wine.tastes.summary)
+all.wine.tastes.percent = round(all.wine.tastes.percent, digits = 2)
+
+labs   = c(paste("Bom - ", all.wine.tastes.percent[1], "%", sep = ""), 
+               paste("Regular - ", all.wine.tastes.percent[2], "%", sep = ""), 
+               paste("Ruim - ", all.wine.tastes.percent[3], "%", sep = ""))
+
+pie(x = all.wine.tastes.percent, 
+    labels = labs, 
+    cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1,
+    main ="[Todos] Gosto (Qualidade 0-10 categorizada)",
+    col = c(wine.good.color, wine.regular.color, wine.bad.color)) #c("green", " yellow", "dark red"))
+```
+
+### Todos os vinhos
+
+```{r}
+par.customized <- par(mfrow=c(1,2))
+
+boxplot(main = "[Todos] Qualidade do Vinho", 
+        all.wine$quality, horizontal = T, col = wine.color.all)
+
+h <- hist(main = "",
+          all.wine$quality, 
+          xlab = "Qualidade", 
+          ylab = "Frequência", ylim = c(0, 3200),
+          col  = "gray",
+          include.lowest = TRUE,
+          cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1,
+          labels = TRUE) #prob = TRUE)
+
+# curva normal
+xfit <- seq(min(all.wine$quality), max(all.wine$quality), length = 40) 
+yfit <- dnorm(xfit, mean = mean(all.wine$quality), sd = sd(all.wine$quality))
+yfit <- yfit * diff(h$mids[1:2]) * length(all.wine$quality) 
+lines(xfit, yfit, col = "blue", lwd = 2)
+
+```
+
+## Resumo:
+
+### Taste - Gráfico de pizza
+
+```{r echo=FALSE, warning=FALSE}
+
+par.customized <- par(mfrow=c(1,1))
+
+labs   = c(paste("Bom - ", all.wine.tastes.percent[1], "%", sep = ""), 
+               paste("Regular - ", all.wine.tastes.percent[2], "%", sep = ""), 
+               paste("Ruim - ", all.wine.tastes.percent[3], "%", sep = ""))
+
+pie(x = all.wine.tastes.percent, 
+    labels = labs, 
+    main ="[Todos] Gosto",
+    cex.axis = 0.75, cex.lab  = 0.75, cex.main = 1,
+    col = c(wine.good.color, wine.regular.color, wine.bad.color)) #c("green", " yellow", "dark red"))
+
+# red
+
+labs   = c(paste("Bom - ", red.wine.tastes.percent[1], "%", sep = ""), 
+               paste("Regular - ", red.wine.tastes.percent[2], "%", sep = ""), 
+               paste("Ruim - ", red.wine.tastes.percent[3], "%", sep = ""))
+
+pie(x = red.wine.tastes.percent, 
+    labels = labs, 
+    main ="[Tinto] Gosto",
+    cex.axis = 0.75, cex.lab  = 0.75, cex.main = 1,
+    col = c(wine.good.color, wine.regular.color, wine.bad.color)) #c("green", " yellow", "dark red"))
+
+# white
+labs   = c(paste("Bom - ", white.wine.tastes.percent[1], "%", sep = ""), 
+               paste("Regular - ", white.wine.tastes.percent[2], "%", sep = ""), 
+               paste("Ruim - ", white.wine.tastes.percent[3], "%", sep = ""))
+
+pie(x = white.wine.tastes.percent, 
+    labels = labs, 
+    main ="[Branco] Gosto",
+    cex.axis = 0.75, cex.lab  = 0.75, cex.main = 1,
+    col = c(wine.good.color, wine.regular.color, wine.bad.color)) #c("green", " yellow", "dark red"))
+```
+
+### Taste / $taste - Gráfico de barras
+
+```{r}
+
+par.customized <- par(mfrow=c(2, 3))
+
+v.all   = as.vector(all.wine.tastes.percent)
+v.red   = as.vector(red.wine.tastes.percent)
+v.white = as.vector(white.wine.tastes.percent)
+
+good    = c(v.all[1], v.red[1], v.white[1])
+regular = c(v.all[2], v.red[2], v.white[2])
+bad     = c(v.all[3], v.red[3], v.white[3])
+
+h = F
+
+
+bp = barplot( all.wine.tastes.percent,
+         main = "[Todos] Qualidade do Vinho",
+         col = c("green", " yellow", "dark red"),
+         cex.axis = 0.85, cex.lab  = 0.85, cex.main = 1,
+         ylim = c(0, 100),
+         horiz = h)
+
+text(bp, all.wine.tastes.percent, paste(all.wine.tastes.percent,"%", sep = ""), pos = 3, cex = 1)
+
+bp = barplot( red.wine.tastes.percent,
+         main = "Somente vinhos tintos",
+         ylab = "Gosto (qualidade)",
+         col = c("green", " yellow", "dark red"),
+         cex.axis = 0.85, cex.lab  = 0.85, cex.main = 1,
+         ylim = c(0, 100),
+         horiz = h)
+
+text(bp, red.wine.tastes.percent, paste(red.wine.tastes.percent,"%", sep = ""), pos = 3, cex = 1)
+
+bp = barplot( white.wine.tastes.percent,
+         main = "Somente vinhos brancos",
+         ylab = "Gosto (qualidade)",
+         col = c("green", " yellow", "dark red"),
+         cex.axis = 0.85, cex.lab  = 0.85, cex.main = 1,
+         ylim = c(0, 100),
+         horiz = h)
+
+text(bp, white.wine.tastes.percent, paste(white.wine.tastes.percent,"%", sep = ""), pos = 3, cex = 1)
+
+#barplot( as.matrix(c(good, regular, bad)), beside = TRUE,
+bp = barplot( good, 
+         main = "Gosto = Bom",
+         ylab = "Tipos de vinho",
+         names.arg = c("Todos", "Tinto", "Branco"),
+         col = c(wine.color.all, wine.color.red, wine.color.white),
+         cex.axis = 0.85, cex.lab  = 0.85, cex.main = 1,
+         ylim = c(0, 100),
+         horiz = h, xlab = "% gosto" )
+
+text(bp, good, paste(good,"%", sep = ""), pos = 3, cex = 1)
+
+
+#barplot( as.matrix(c(good, regular, bad)), beside = TRUE,
+bp = barplot( regular, 
+         main = "Gosto = Regular",
+         ylab = "Tipos de vinho",
+         names.arg = c("Todos", "Tinto", "Branco"),
+         col = c(wine.color.all, wine.color.red, wine.color.white),
+         cex.axis = 0.85, cex.lab  = 0.85, cex.main = 1,
+         ylim = c(0, 100),
+         horiz = h, xlab = "% gosto" )
+
+text(bp, regular, paste(regular,"%", sep = ""), pos = 3, cex = 1)
+
+#barplot( as.matrix(c(good, regular, bad)), beside = TRUE,
+bp = barplot( bad, 
+         main = "Gosto = Ruim",
+         ylab = "Tipos de vinho",
+         names.arg = c("Todos", "Tinto", "Branco"),
+         col = c(wine.color.all, wine.color.red, wine.color.white),
+         cex.axis = 0.85, cex.lab  = 0.85, cex.main = 1,
+         ylim = c(0, 100),
+         horiz = h, xlab = "% gosto" )
+
+text(bp, bad, paste(bad,"%", sep = ""), pos = 3, cex = 1)
+
+```
+
+
+
+### Qualidade / $quality - BoxPlot
+
+```{r summary-quality, echo=FALSE, warning=FALSE}
+par.customized <- par(mfrow=c(3,1))
+
+boxplot(x = all.wine$quality, xlab = "Qualidade", 
+        col = wine.color.all,
+        main = "[Todos] Qualidade do Vinho",
+        cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1,
+        horizontal = T, 
+        frame = F,
+        ylim = c(3,10))
+
+boxplot(x = red.wine$quality, xlab = "Qualidade", 
+        col = wine.color.red,
+        main = "[Tinto] Qualidade do Vinho",
+        cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1, 
+        horizontal = T, 
+        frame = F,
+        ylim = c(3,10))
+
+boxplot(x = white.wine$quality, xlab = "Qualidade", 
+        col = wine.color.white,
+        main = "[Branco] Qualidade do Vinho",
+        cex.axis = 0.75, cex.lab  = 0.75,   cex.main = 1, 
+
+        horizontal = T, 
+        frame = F,
+        ylim = c(3,10))
+
+```
+
+### Visão exemplo 1: pela cor do vinho / $color
+Para demonstrar a distribuição da cor de vinho em um *scatter plot*, por duas variáveis escolhidas aleatoriamente.
+
+__**Nota:**__ utilizando **plot**
+```{r}
+par.customized <- par(mfrow=c(1,1))
+plot(x = all.wine$fixed.acidity, y = all.wine$pH,
+     xlab = wine.fields.fixed.acidity, ylab = wine.fields.pH,
+     main = "Pela cor do Vinho",
+     col = all.wine$col.color,
+     pch = 20, frame.plot = F)
+legend(x = "topright", 
+       legend = unique(all.wine$color), 
+       col    = unique(all.wine$col.color),
+       pch = 16 )
+```
+
+**__COMENTÁRIO:__ considerando as variáveis utilizados neste exemplo, percebe-se dois grupos, um de vinho tinto e outro de vinho branco, porém com alguma área de intersecção/nebulosa que dificulta a divisão entre eles.**
+
+**Atenção:** nas próximas análises será aprofundado este tipo de análise para o conjunto de atributos desta base de dados. Este exemplo é meramente ilustrativo para demonstrar o tratamento de dados realizado e o tipo de análises que podem ser feitas com esta nova coluna (adição da coluna cor/*color* está OK.)
+
+
+### Visão exemplo 2: pelo gosto do vinho (qualidade atribuida) / $taste
+Para demonstrar a distribuição do gosto do vinho em um *scatter plot*, por duas variáveis escolhidas aleatoriamente.
+
+__**Nota:**__ utilizando **ggplot**
+
+```{r}
+library(ggplot2)
+
+ggplot(all.wine, aes(x = fixed.acidity, y = pH)) + 
+  labs(x = wine.fields.fixed.acidity, y = wine.fields.pH, fill = "Gosto") +
+  geom_point(shape = 19, aes(color = factor(all.wine$taste))) +
+  ggtitle("Pelo gosto do vinho") + 
+  scale_color_manual("", 
+                     values = c("green", "gold", "red"),
+                     breaks = c("bom", "regular", "ruim"))
+
+```
+
+**__COMENTÁRIO:__ considerando as variáveis utilizados neste exemplo, não há como perceber os grupos de gosto / *taste* ("qualidade: bom, regular e ruim") dos vinhos. Os grupos estão bastante misturados, neste sentido, estas varíaveis isoladamente não estão ajudando no entendimento do gosto / *taste* ("qualidade") dos vinhos**
+
+**Atenção:** nas próximas análises será aprofundado este tipo de análise para o conjunto de atributos desta base de dados. Este exemplo é meramente ilustrativo para demonstrar o tratamento de dados realizado e o tipo de análises que podem ser feitas com esta nova coluna (adição da coluna gosto/*taste* está OK.)
+
+
+## Primeira etapa de preparação de dados OK.
